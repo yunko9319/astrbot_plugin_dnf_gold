@@ -15,37 +15,55 @@ class DnfGoldPlugin(Star):
 
     @filter.command("查金价")
     async def check_gold(self, event: AstrMessageEvent):
+        # 动态获取发送者名字
         sender_name = event.get_sender_name()
-        yield event.plain_result(f"🔍 正在根据 [{sender_name}] 的指示，扫描跨5最新行情...")
+        yield event.plain_result(f"🔍 正在根据 [{sender_name}] 的指示，扫描 UU 和 DD 的跨5主列表行情...")
         
         report = ["💰 DNF 跨5 实时看板 (买家视角)"]
         report.append(f"📅 统计时间: {time.strftime('%H:%M:%S')}\n")
 
-        targets = [
-            {"name": "UU898", "url": "https://www.uu898.com/newTrade-95-c-3-2325-s25022/"},
-            {"name": "DD373", "url": "https://www.dd373.com/s-rbg22w-c-42hcun-8tjvpa-55as0c-0-0-0.html"}
-        ]
-
         async with httpx.AsyncClient(headers=self.headers, timeout=15, follow_redirects=True) as client:
-            for target in targets:
-                try:
-                    r = await client.get(target['url'])
-                    if r.status_code == 200:
-                        # 磨平 HTML 标签
-                        plain = re.sub(r'<[^>]+>', ' ', r.text)
-                        
-                        # 只匹配 "1元=" 后面跟着的两位数比例
-                        match = re.findall(r'1\s*元\s*[=等于]\s*(\d{2}\.?\d*)', plain)
-                        # 逻辑过滤：只有 40-90 之间的数字才视为金价比例
-                        ratios = [float(v) for v in match if 40 < float(v) < 90]
-                        
-                        if ratios:
-                            unique_p = sorted(list(set(ratios)), reverse=True)[:3]
-                            report.append(f"【{target['name']}】")
-                            for i, v in enumerate(unique_p):
-                                report.append(f" {i+1}. 比例 1:{v} (1亿≈{10000/v:.1f}元)")
-                            report.append(f" 🔗 直达: {target['url']}\n")
-                except:
-                    report.append(f"【{target['name']}】查询超时\n")
+            # --- 1. UU898 精准提取 ---
+            try:
+                uu_url = "https://www.uu898.com/newTrade-95-c-3-2325-s25022/"
+                r = await client.get(uu_url)
+                if r.status_code == 200:
+                    plain = re.sub(r'<[^>]+>', ' ', r.text)
+                    report.append("【UU898 (江苏1区)】")
+                    p_chunks = plain.split("免费兑换此商品")
+                    p_ratios = []
+                    for chunk in p_chunks[1:7]:
+                        match = re.findall(r'(\d{2}\.\d{1,4})', chunk)
+                        if match:
+                            v = float(match[0])
+                            # 逻辑过滤：只有 40-90 之间的数字才视为金价比例
+                            if 40 < v < 90: p_ratios.append(v)
+                    
+                    if p_ratios:
+                        unique_p = sorted(list(set(p_ratios)), reverse=True)[:3]
+                        for v in unique_p:
+                            report.append(f"   - 1:{v} (1亿≈{10000/v:.1f}元)")
+                    report.append(f" 🔗 直达: {uu_url}\n")
+            except: report.append("【UU898】查询超时\n")
 
+            # --- 2. DD373 精准提取 ---
+            try:
+                dd_url = "https://www.dd373.com/s-rbg22w-c-42hcun-8tjvpa-55as0c-0-0-0.html"
+                r = await client.get(dd_url)
+                if r.status_code == 200:
+                    plain = re.sub(r'<[^>]+>', ' ', r.text)
+                    report.append("【DD373 (跨5区)】")
+                    l_start = plain.find("比例最佳")
+                    if l_start != -1:
+                        l_chunk = plain[l_start:l_start+8000]
+                        l_ratios = re.findall(r'1\s*元\s*[=等于]\s*(\d{2}\.\d+)', l_chunk)
+                        valid_l = [float(x) for x in l_ratios if 40 < float(x) < 90]
+                        if valid_l:
+                            unique_l = sorted(list(set(valid_l)), reverse=True)[:3]
+                            for v in unique_l:
+                                report.append(f"   - 1:{v} (1亿≈{10000/v:.1f}元)")
+                    report.append(f" 🔗 直达: {dd_url}\n")
+            except: report.append("【DD373】查询超时\n")
+
+        report.append("-" * 22)
         yield event.plain_result("\n".join(report))
