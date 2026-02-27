@@ -12,7 +12,7 @@
 
 ### 方式 A：通过 WebUI 仪表盘安装 (推荐)
 1. 进入 AstrBot 仪表盘 -> **插件管理** -> **从 GitHub 安装**。
-2. 粘贴本仓库链接：`https://github.com/yunko9319/astrbot_plugin_dnf_gold`
+2. 粘贴本仓库链接：`https://github.com/yunko1993/astrbot_plugin_dnf_gold`
 3. 点击安装并等待重启完成。
 
 ### 方式 B：手动在服务器安装 (极客模式)
@@ -22,7 +22,7 @@
    ```
 2. **克隆仓库**:
    ```bash
-   git clone https://github.com/yunko9319/astrbot_plugin_dnf_gold.git
+   git clone https://github.com/yunko1993/astrbot_plugin_dnf_gold.git
    ```
 3. **安装环境依赖**:
    ```bash
